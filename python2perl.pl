@@ -75,29 +75,35 @@ sub treat_exp {
 			} 
 			return;
 
-		} elsif ($word ne "\s" && $word =~ /^[a-zA-Z][a-zA-Z0-9_]*$/) {
+		} elsif ($word ne "\s" && $word =~ /^[a-zA-Z][a-zA-Z0-9_]*$/ && $word ne ("and" || "or" || "not") && $word ne ("break") && $word ne ("continue")) {
 			
 			print "\$$word ";
 		
-		} elsif ($word ne "\s" && $word =~ /^.*[\+\-\*\/\%\:\=\!\<\>\;].*$/) {
+		} elsif ($word ne "\s" && $word =~ /^.*[\+\-\*\/\%\:\=\!\<\>\;\&\|\^\~].*$/) {
 			
 			$prev = $word;
 			$post = $word;
 			$op = $word;
 
-			while ($post =~ /[\+\-\*\/\%\:\=\!\<\>\;]/) {
+			while ($post =~ /[\+\-\*\/\%\:\=\!\<\>\;\&\|\^\~]/) {
 				
 				$prev =~ s/[a-zA-Z0-9]*\K.*//g;
-				$post =~ s/[a-zA-Z0-9]*[\+\-\*\/\%\:\=\!\<\>\;]*//;
+				$post =~ s/[a-zA-Z0-9]*[\+\-\*\/\%\:\=\!\<\>\;\&\|\^\~]*//;
 				$op =~ s/^[a-zA-Z0-9]*//;
-				$op =~ s/[^\+\-\*\/\%\:\=\!\<\>\;]//g;
+				$op =~ s/[^\+\-\*\/\%\:\=\!\<\>\;\&\|\^\~]//g;
 
-				if ($prev eq "") {
-					print "$op ";
-				} elsif ($op eq ":") {
+				if ($op eq "<>") {
+					$op = "!=";
+				}
+
+				if ($op eq ":") {
 					print "$prev) {\n\t";
 				} elsif ($op eq ";") {
 					print "$prev;\n\t";
+				} elsif ($op eq "~") {
+					print "$op";
+				} elsif ($prev eq "") {
+					print "$op ";	
 				} else {
 					print "$prev $op ";
 				}
@@ -106,14 +112,25 @@ sub treat_exp {
 				$op = $post;
 			}
 
-			if ($post ne ""){
+			if ($post eq "break") {
+				print "last ";
+			} elsif ($post eq "continue") {
+				print "next ";
+			} elsif ($post =~ /^[a-zA-Z][a-zA-Z0-9_]*$/) {
+				print "\$$post ";
+			} elsif ($post ne ""){
 				print "$post ";
 			}
 		
 		} else {
 
-			print "$word ";
-
+			if ($word eq "break") {
+				print "last ";
+			} elsif ($word eq "continue") {
+				print "next ";
+			} else {
+				print "$word ";
+			}
 		}
 	}
 }
