@@ -1,20 +1,12 @@
 #!/usr/bin/perl -w
 
-$count = 0 ;
-$i = 2 ;
-while ($i < 100) {
-	$k = $i / 2 ;
-	$j = 2 ;
-	while ($j <= $k) {
-		$k = $i % $j ;
-		if ($k == 0) {
-			$count = $count - 1 ;
-			last;
-		}
-		$k = $i / 2 ;
-		$j = $j + 1 ;
-	}
-	$count = $count + 1 ;
-	$i = $i + 1 ;
+$answer = 41 ;
+$blah = 2 ;
+if ($answer > 0) {
+	$blah = $blah + 2;
+	$answer = $answer + $blah ;
 }
-print $count , "\n";
+if ($answer == 43 and $blah == 2) {
+	$answer = $answer - 1 ;
+}
+print $answer , "\n";

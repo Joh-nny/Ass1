@@ -43,8 +43,17 @@ sub treat_if_while_sl {
 		$line =~ s/^\s*while\s*//g;
 
 	}
+
 	treat_exp($line, 0);
-	print ";\n}\n";
+
+	if ($line =~ /.*sys.stdout.write.*/) {
+		$new_line = $line;
+		$new_line =~ s/.*sys/sys/;
+		treat_sys_write($new_line);
+		print "}\n";
+	} else {
+		print ";\n}\n";
+	}
 
 }
 
@@ -82,6 +91,26 @@ sub treat_if_while_ml {
 	treat_exp($line, 1);
 }
 
+sub treat_sys_write {
+	my ($line) = @_;
+
+	$string = $line;
+	$string =~ s/^\s*sys.stdout.write\("//;
+	$string =~ s/^.*\K\"\).*\n$//;
+
+	print "print \"$string\";\n";
+
+	$new_line = $line;
+	$new_line =~ s/.*\)//;
+	$new_line =~ s/;\s*//;
+	#print "new => $new_line\n";
+	if ($new_line ne "") {
+		print "\t";
+		treat_exp($new_line, 0);
+		print ";\n"
+	}
+}
+
 sub treat_exp {
 	my ($line, $option) = @_;
 
@@ -108,6 +137,9 @@ sub treat_exp {
 				print ";\n\t";
 				treat_exp($new_line);
 			} 
+			return;
+
+		} elsif ($word ne "\s" && $word =~ /.*sys.stdout.write.*/) {
 			return;
 
 		} elsif ($word ne "\s" && $word =~ /^[a-zA-Z][a-zA-Z0-9_]*$/ && $word ne ("and" || "or" || "not") && $word ne ("break") && $word ne ("continue")) {
@@ -346,6 +378,25 @@ while ($line = <>) {
 			}
 
 			print "next;\n";
+
+		} elsif ($line =~ /^\s*sys.stdout.write\(".*"\)\s*$/) {
+
+			$tabs = 0;
+
+			foreach $key (sort keys %hash) {
+				if ($key == $count) {
+					last;
+				}
+				if ($key ne "") {
+					$tabs++;
+				}
+			}
+
+			for ($i = 0; $i < $tabs; $i++) {
+				print "\t";
+			}
+
+			treat_sys_write($line);
 	
 		} else {
 	
