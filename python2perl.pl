@@ -1,5 +1,55 @@
 #!/usr/bin/perl
 
+sub print_tabs {
+	my ($count, $tabs) = @_;
+
+	foreach $key (sort keys %hash) {
+		if ($key == $count) {
+			last;
+		}
+		if ($key ne "") {
+			$tabs++;
+		}
+	}
+
+	for ($i = 0; $i < $tabs; $i++) {
+		print "\t";
+	}
+}
+
+sub close_braces {
+	my ($count) = @_;
+
+	foreach $key (sort {$b <=> $a} keys %hash) {
+
+		$tabs = 0;
+
+		#print "key out => $key\n";
+		if ($hash{$key} eq "false") {
+
+			foreach $key2 (sort keys %hash) {
+				#print "key in => $key2\n";
+				if ($key2 == $key) {
+					last;
+				}
+				if ($key2 ne "") {
+					$tabs++;
+				}
+			}
+
+			for ($i = 0; $i < $tabs; $i++) {
+				print "\t";
+			}
+			print "}\n";
+			$hash{$key} = "true";
+
+			if ($key == $count) {
+				last;
+			}
+		}
+	}
+}
+
 sub treat_print {
 	my ($line, $expr) = @_;
 
@@ -27,66 +77,182 @@ sub treat_print {
 	}
 }
 
-sub treat_if_while_sl {
-	my ($line) = @_;
+sub treat_if_while_for_sl {
+	my ($line, $count) = @_;
+
+	$new_line = $line;
 
 	if ($line =~ /.*if.*/) {
 
 		print "if (";
-		$line =~ s/^\s*if\s*//g;
+		$line =~ s/^\s*if\s*\(*//g;
+		$line =~ s/.*\K\)*\:.*//g;
 
-	} else {
+		treat_exp($line, 0, 0, 0);
+		print ") {\n";
+
+	} elsif ($line =~ /.*while.*/) {
 
 		print "while (";
-		$line =~ s/^\s*while\s*//g;
+		$line =~ s/^\s*while\s*\(*//g;
+		$line =~ s/.*\K\)*\:.*//g;
 
-	}
+		treat_exp($line, 0, 0, 0);
+		print ") {\n";
 
-	treat_exp($line, 0);
-
-	if ($line =~ /.*sys.stdout.write.*/) {
-		$new_line = $line;
-		$new_line =~ s/.*sys/sys/;
-		treat_sys_write($new_line);
-		print "}\n";
 	} else {
-		print ";\n}\n";
+
+		$variable = $line;
+		$variable =~ s/\s*for\s//;
+		$variable =~ s/^[a-zA-Z][a-zA-Z0-9_]*\K.*\n$//;
+
+		$param = $line;
+		$param =~ s/.*in\s//;
+
+		#print "param => $param\n";
+
+		if ($param =~ /range.*/) {
+			$arg = $param;
+			$arg =~ s/.*\(//;
+			$arg =~ s/.*\K\).*//;
+
+			if ($arg =~ /\,/) {
+				$start = $arg;
+				$start =~ s/[0-9]+\K\,.*\n$//;
+			
+				$finish = $arg;
+				$finish =~ s/.*\,\s*//;
+				if ($finish =~ /^[0-9]+$/) {
+					$finish--;
+					print "foreach \$$variable ($start..$finish) {\n";
+				} else {
+					print "foreach \$$variable ($start..";
+					treat_exp($finish, 0, 0, 0);
+					print "- 1) {\n";
+				}
+		
+			} else {
+				$finish = $arg;
+				$finish =~ s/.*\K\n$//;
+				if ($finish =~ /^[0-9]+$/) {
+					$finish--;
+					print "foreach \$$variable (0..$finish) {\n";
+				} else {
+					print "foreach \$$variable (0..";
+					treat_exp($finish, 0, 0, 0);
+					print "- 1) {\n";
+				}
+			}
+		} else {
+			$arg = $param;
+			$arg =~ s/\"//;
+			$arg =~ s/.*\K\".*\n$//;
+
+			print "foreach \$$variable (split \/\/\, \"$arg\") {\n";
+		}
 	}
+
+	$new_line =~ s/.*\:\s*//;
+
+	#print "new => $new_line\n";
+
+	treat_exp($new_line, 0, $count, 1);
+
+	print ";\n";
+
+	print_tabs($count, 0);
+
+	print "}\n";
+
+	#print "$count => $hash{$count}\n";
+
+	$hash{$count} = "true";
+
+	#if ($line =~ /.*sys.stdout.write.*/) {
+	#	$new_line = $line;
+	#	$new_line =~ s/.*sys/sys/;
+	#	treat_sys_write($new_line);
+	#	print "}\n";
+	#} else {
+	#	print ";\n}\n";
+	#}
 
 }
 
-sub treat_if_while_ml {
-	my ($line, $count) = @_;
+sub treat_if_while_for_ml {
+	my ($line) = @_;
 
 	#print ("HERE\n");
-
-	$tabs = 0;
-
-	foreach $key (sort keys %hash) {
-		if ($key == $count) {
-			last;
-		}
-		if ($key ne "") {
-			$tabs++;
-		}
-	}
-
-	for ($i = 0; $i < $tabs; $i++) {
-		print "\t";
-	}
 
 	if ($line =~ /.*if.*/) {
 
 		print "if (";
-		$line =~ s/^\s*if\s*//g;
+		$line =~ s/^\s*if\s*\(*//g;
+		$line =~ s/.*\K\)*\:$//g;
 
-	} else {
+		treat_exp($line, 1, 0, 0);
+		print ") {\n";
+
+	} elsif ($line =~ /.*while.*/) {
 
 		print "while (";
-		$line =~ s/^\s*while\s*//g;
+		$line =~ s/^\s*while\s*\(*//g;
+		$line =~ s/.*\K\)*\:$//g;
 
+		treat_exp($line, 1, 0, 0);
+		print ") {\n";
+	
+	} else {
+
+		$variable = $line;
+		$variable =~ s/\s*for\s//;
+		$variable =~ s/^[a-zA-Z][a-zA-Z0-9_]*\K.*\n$//;
+
+		$param = $line;
+		$param =~ s/.*in\s//;
+
+		#print "param => $param\n";
+
+		if ($param =~ /range.*/) {
+			$arg = $param;
+			$arg =~ s/.*\(//;
+			$arg =~ s/.*\K\).*//;
+
+			if ($arg =~ /\,/) {
+				$start = $arg;
+				$start =~ s/[0-9]+\K\,.*\n$//;
+			
+				$finish = $arg;
+				$finish =~ s/.*\,\s*//;
+				if ($finish =~ /^[0-9]+$/) {
+					$finish--;
+					print "foreach \$$variable ($start..$finish) {\n";
+				} else {
+					print "foreach \$$variable ($start..";
+					treat_exp($finish, 0, 0, 0);
+					print "- 1) {\n";
+				}
+		
+			} else {
+				$finish = $arg;
+				$finish =~ s/.*\K\n$//;
+				if ($finish =~ /^[0-9]+$/) {
+					$finish--;
+					print "foreach \$$variable (0..$finish) {\n";
+				} else {
+					print "foreach \$$variable (0..";
+					treat_exp($finish, 0, 0, 0);
+					print "- 1) {\n";
+				}
+			}
+		} else {
+			$arg = $param;
+			$arg =~ s/\"//;
+			$arg =~ s/.*\K\".*\n$//;
+
+			print "foreach \$$variable (split \/\/\, \"$arg\") {\n";
+		}
 	}
-	treat_exp($line, 1);
 }
 
 sub treat_sys_write {
@@ -109,69 +275,10 @@ sub treat_sys_write {
 	}
 }
 
-sub treat_for {
-	my ($line, $count) = @_;
-
-	$tabs = 0;
-
-	foreach $key (sort keys %hash) {
-		if ($key == $count) {
-			last;
-		}
-		if ($key ne "") {
-			$tabs++;
-		}
-	}
-
-	for ($i = 0; $i < $tabs; $i++) {
-		print "\t";
-	}
-
-	$variable = $line;
-	$variable =~ s/\s*for\s//;
-	$variable =~ s/^[a-zA-Z][a-zA-Z0-9_]*\K.*\n$//;
-
-	$param = $line;
-	$param =~ s/.*in\s//;
-
-	#print "param => $param\n";
-
-	if ($param =~ /range.*/) {
-		$arg = $param;
-		$arg =~ s/.*\(//;
-		$arg =~ s/.*\K\).*//;
-
-		if ($arg =~ /\,/) {
-			$start = $arg;
-			$start =~ s/[0-9]+\K\,.*\n$//;
-			
-			$finish = $arg;
-			$finish =~ s/.*\,\s*//;
-			$finish--;
-
-			print "foreach \$$variable ($start..$finish) {\n";
-		
-		} else {
-			$finish = $arg;
-			$finish =~ s/[0-9]+\K\n$//;
-			$finish--;
-
-			print "foreach \$$variable (0..$finish) {\n";
-		}
-	} else {
-		$arg = $param;
-		$arg =~ s/\"//;
-		$arg =~ s/.*\K\".*\n$//;
-
-		print "foreach \$$variable (split \/\/\, \"$arg\") {\n";
-	}
-	#print "arg => $arg\n";
-	#print "start => $start\n";
-	#print "finish => $finish\n";
-}
-
 sub treat_exp {
-	my ($line, $option) = @_;
+	my ($line, $option, $count, $tabs) = @_;
+
+	print_tabs($count, $tabs);
 
 	for $word (split(/\s/, $line)) {
 
@@ -194,7 +301,7 @@ sub treat_exp {
 			treat_print($print, 1);
 			if ($new_line ne $line) {
 				print ";\n\t";
-				treat_exp($new_line);
+				treat_exp($new_line, $option, $count, $tabs);
 			} 
 			return;
 
@@ -289,83 +396,35 @@ while ($line = <>) {
 		$line =~ /^(\s*)/;
 		$count = length($1);
 
-		#foreach $value (@spaces) {
-		#	print "value => $value\n";
-		#}
-
 		#print "last => $last_count\n";
 		#print "count => $count\n";
 
 		if ($count < $last_count) {
 
 			#print "count => $count\n";
-
-			foreach $key (sort {$b <=> $a} keys %hash) {
-
-				$tabs = 0;
-
-				#print "key out => $key\n";
-				if ($hash{$key} eq "false") {
-
-					foreach $key2 (sort keys %hash) {
-						#print "key in => $key2\n";
-						if ($key2 == $key) {
-							last;
-						}
-						if ($key2 ne "") {
-							$tabs++;
-						}
-					}
-
-					for ($i = 0; $i < $tabs; $i++) {
-						print "\t";
-					}
-					print "}\n";
-					$hash{$key} = "true";
-
-					if ($key == $count) {
-						last;
-					}
-				}
-			}
+			close_braces($count);
+			
 		}
 
 		if ($line =~ /^\s*print.*/) {
-		
-			$tabs = 0;
 
-			foreach $key (sort keys %hash) {
-				if ($key == $count) {
-					last;
-				}
-				if ($key ne "") {
-					$tabs++;
-				}
-			}
-
-			for ($i = 0; $i < $tabs; $i++) {
-				print "\t";
-			}
+			print_tabs($count, 0);
 
 			treat_print($line, 0);
 
-		#} elsif ($line =~ /^\s*if.*\:.+$/) {
+		} elsif ($line =~ /^\s*if.*\:.+/ || $line =~ /^\s*while.*\:.+/ || $line =~ /^\s*for.*\:.+/) {
 
-		#	treat_if_sl($line);
+			if (!exists($hash{$count}) || (exists($hash{$count}) && $hash{$count} eq "true")) {
 
-		#} elsif ($line =~ /^\s*while.*:.+/) {
+				$hash{$count} = "false";
 
-		#	treat_while_sl($line);
+			}
 
-		} elsif ($line =~ /^\s*if.*\:.+/ || $line =~ /^\s*while.*\:.+/) {
+			print_tabs($count, 0);
 
-			#$index = firstidx {$_ eq $count} @spaces;
+			treat_if_while_for_sl($line, $count);
 
-			#print "index => $index\n";
-
-			treat_if_while_sl($line);
-
-		} elsif ($line =~ /^\s*if.*\:$/ || $line =~ /^\s*while.*\:$/) {
+		} elsif ($line =~ /^\s*if.*\:$/ || $line =~ /^\s*while.*\:$/ || $line =~ /^\s*for.*\:$/) {
 
 			#print "count => $count\n";
 
@@ -375,98 +434,33 @@ while ($line = <>) {
 
 			}
 
-			treat_if_while_ml($line, $count);
+			print_tabs($count, 0);
+
+			treat_if_while_for_ml($line);
 
 		} elsif ($line =~ /^\s*[a-zA-Z][a-zA-Z0-9_]*\s*=.*$/) {
 	  	
 	  		#print "count => $count\n";
-	  		
-	  		$tabs = 0;
-
-			foreach $key (sort keys %hash) {
-				#print "key => $key\n";
-				if ($key == $count) {
-					last;
-				}
-				if ($key ne "") {
-					$tabs++;
-				}
-			}
-
-			for ($i = 0; $i < $tabs; $i++) {
-				print "\t";
-			}
+	  		print_tabs($count, 0);
 
 	  		treat_exp($line, 0);
 	  		print ";\n";
 
 	  	} elsif ($line =~ /^\s*break\s*$/) {
 
-	  		$tabs = 0;
-
-			foreach $key (sort keys %hash) {
-				if ($key == $count) {
-					last;
-				}
-				if ($key ne "") {
-					$tabs++;
-				}
-			}
-
-			for ($i = 0; $i < $tabs; $i++) {
-				print "\t";
-			}
-
+	  		print_tabs($count, 0);
 			print "last;\n";
 
 		} elsif ($line =~ /^\s*continue\s*$/) {
 
-	  		$tabs = 0;
-
-			foreach $key (sort keys %hash) {
-				if ($key == $count) {
-					last;
-				}
-				if ($key ne "") {
-					$tabs++;
-				}
-			}
-
-			for ($i = 0; $i < $tabs; $i++) {
-				print "\t";
-			}
-
+			print_tabs($count, 0);
 			print "next;\n";
 
 		} elsif ($line =~ /^\s*sys.stdout.write\(".*"\)\s*$/) {
 
-			$tabs = 0;
-
-			foreach $key (sort keys %hash) {
-				if ($key == $count) {
-					last;
-				}
-				if ($key ne "") {
-					$tabs++;
-				}
-			}
-
-			for ($i = 0; $i < $tabs; $i++) {
-				print "\t";
-			}
-
+			print_tabs($count, 0);
 			treat_sys_write($line);
 
-		} elsif ($line =~ /^\s*for.*/) {
-
-			if (!exists($hash{$count}) || (exists($hash{$count}) && $hash{$count} eq "true")) {
-
-				$hash{$count} = "false";
-
-			}
-
-			treat_for($line, $count);
-		
 		} else {
 	
 			# Lines we can't translate are turned into comments
@@ -479,26 +473,4 @@ while ($line = <>) {
 	$last_count = $count;
 }
 
-foreach $key (sort {$b <=> $a} keys %hash) {
-
-	$tabs = 0;
-
-	#print "key out => $key\n";
-	if ($hash{$key} eq "false") {
-
-		foreach $key2 (sort keys %hash) {
-			#print "key in => $key2\n";
-			if ($key2 == $key) {
-				last;
-			}
-			if ($key2 ne "") {
-				$tabs++;
-			}
-		}
-
-		for ($i = 0; $i < $tabs; $i++) {
-			print "\t";
-		}
-		print "}\n";
-	}
-}
+close_braces(0);
