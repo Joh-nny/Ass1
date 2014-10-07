@@ -1,7 +1,5 @@
 #!/usr/bin/perl
 
-use List::MoreUtils qw(firstidx);
-
 sub treat_print {
 	my ($line, $expr) = @_;
 
@@ -109,6 +107,67 @@ sub treat_sys_write {
 		treat_exp($new_line, 0);
 		print ";\n"
 	}
+}
+
+sub treat_for {
+	my ($line, $count) = @_;
+
+	$tabs = 0;
+
+	foreach $key (sort keys %hash) {
+		if ($key == $count) {
+			last;
+		}
+		if ($key ne "") {
+			$tabs++;
+		}
+	}
+
+	for ($i = 0; $i < $tabs; $i++) {
+		print "\t";
+	}
+
+	$variable = $line;
+	$variable =~ s/\s*for\s//;
+	$variable =~ s/^[a-zA-Z][a-zA-Z0-9_]*\K.*\n$//;
+
+	$param = $line;
+	$param =~ s/.*in\s//;
+
+	#print "param => $param\n";
+
+	if ($param =~ /range.*/) {
+		$arg = $param;
+		$arg =~ s/.*\(//;
+		$arg =~ s/.*\K\).*//;
+
+		if ($arg =~ /\,/) {
+			$start = $arg;
+			$start =~ s/[0-9]+\K\,.*\n$//;
+			
+			$finish = $arg;
+			$finish =~ s/.*\,\s*//;
+			$finish--;
+
+			print "foreach \$$variable ($start..$finish) {\n";
+		
+		} else {
+			$finish = $arg;
+			$finish =~ s/[0-9]+\K\n$//;
+			$finish--;
+
+			print "foreach \$$variable (0..$finish) {\n";
+		}
+	} else {
+		$arg = $param;
+		$arg =~ s/\"//;
+		$arg =~ s/.*\K\".*\n$//;
+
+		print "foreach \$$variable (split \/\/\, \"$arg\") {\n";
+	}
+	#print "arg => $arg\n";
+	#print "start => $start\n";
+	#print "finish => $finish\n";
 }
 
 sub treat_exp {
@@ -397,7 +456,17 @@ while ($line = <>) {
 			}
 
 			treat_sys_write($line);
-	
+
+		} elsif ($line =~ /^\s*for.*/) {
+
+			if (!exists($hash{$count}) || (exists($hash{$count}) && $hash{$count} eq "true")) {
+
+				$hash{$count} = "false";
+
+			}
+
+			treat_for($line, $count);
+		
 		} else {
 	
 			# Lines we can't translate are turned into comments
