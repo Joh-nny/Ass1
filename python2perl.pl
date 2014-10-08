@@ -24,11 +24,10 @@ sub close_braces {
 
 		$tabs = 0;
 
-		#print "key out => $key\n";
 		if ($hash{$key} eq "false") {
 
 			foreach $key2 (sort keys %hash) {
-				#print "key in => $key2\n";
+
 				if ($key2 == $key) {
 					last;
 				}
@@ -66,7 +65,7 @@ sub treat_print {
 	} else {
 		
 		print "print ";
-		$line =~ s/^\s*print\s*//g;
+		$line =~ s/^\s*print\s*//;
 		treat_exp($line, 0);
 
 		print ", \"\\n\"";
@@ -76,17 +75,13 @@ sub treat_print {
 sub treat_if_while_for_sl {
 	my ($line, $count) = @_;
 
-	$new_line = $line;
-	$original_line = $line;
+	$new = $line;
 
 	if ($line =~ /.*elif.*/) {
 
 		print "elsif (";
 		$line =~ s/^\s*elif\s*//;
-		#print "line => $line\n";
 		$line =~ s/([^\:]*)\K:.*//;
-
-		#print "line => $line\n";
 
 		treat_exp($line, 0, 0, 0);
 		print ") {\n";
@@ -122,24 +117,30 @@ sub treat_if_while_for_sl {
 		$param = $line;
 		$param =~ s/.*in\s//;
 
-		#print "param => $param\n";
-
 		if ($param =~ /range.*/) {
 			$arg = $param;
-			$arg =~ s/.*\(//;
-			$arg =~ s/.*\K\).*//;
+			$arg =~ s/[^\(]*\(//;
+			$arg =~ s/[^\)]*\K\):.*//;
 
 			if ($arg =~ /\,/) {
 				$start = $arg;
-				$start =~ s/[0-9]+\K\,.*\n$//;
+				$start =~ s/[^\,]*\K\,.*\n$//;
 			
 				$finish = $arg;
-				$finish =~ s/.*\,\s*//;
+				$finish =~ s/[^\,]*\,\s*//;
+
+				if ($start =~ /^[0-9]+$/) {
+					print "foreach \$$variable ($start..";
+				} else {
+					print "foreach \$$variable (";
+					treat_exp($start, 0, 0, 0);
+					print "..";
+				}
+
 				if ($finish =~ /^[0-9]+$/) {
 					$finish--;
-					print "foreach \$$variable ($start..$finish) {\n";
+					print "$finish) {\n";
 				} else {
-					print "foreach \$$variable ($start..";
 					treat_exp($finish, 0, 0, 0);
 					print "- 1) {\n";
 				}
@@ -165,11 +166,9 @@ sub treat_if_while_for_sl {
 		}
 	}
 
-	$new_line =~ s/([^\:]*)\:\s*//;
+	$new =~ s/[^\:]*\:\s*//;
 
-	#print "new => $new_line\n";
-
-	treat_exp($new_line, 0, $count, 1);
+	treat_exp($new, 0, $count, 1);
 
 	print ";\n";
 
@@ -177,32 +176,18 @@ sub treat_if_while_for_sl {
 
 	print "}\n";
 
-	#print "$count => $hash{$count}\n";
-
 	$hash{$count} = "true";
-
-	#if ($line =~ /.*sys.stdout.write.*/) {
-	#	$new_line = $line;
-	#	$new_line =~ s/.*sys/sys/;
-	#	treat_sys_write($new_line);
-	#	print "}\n";
-	#} else {
-	#	print ";\n}\n";
-	#}
 
 }
 
 sub treat_if_while_for_ml {
 	my ($line) = @_;
 
-	#print ("HERE\n");
-
 	if ($line =~ /.*elif.*/) {
 
 		print "elsif (";
-		$line =~ s/^\s*elif\s*\(*//;
-		$line =~ s/.*\K\)+\:$//;
-		$line =~ s/.*\K\:$//;
+		$line =~ s/^\s*elif\s*//;
+		$line =~ s/([^\:]*)\K:$//;
 
 		treat_exp($line, 1, 0, 0);
 		print ") {\n";
@@ -210,11 +195,8 @@ sub treat_if_while_for_ml {
 	} elsif ($line =~ /.*if.*/) {
 
 		print "if (";
-		$line =~ s/^\s*if\s*\(*//g;
-		$line =~ s/.*\K\)+\:$//g;
-		$line =~ s/.*\K\:$//g;
-
-		#print "=> $line\n";
+		$line =~ s/^\s*if\s*//;
+		$line =~ s/([^\:]*)\K:$//;
 
 		treat_exp($line, 1, 0, 0);
 		print ") {\n";
@@ -226,8 +208,8 @@ sub treat_if_while_for_ml {
 	} elsif ($line =~ /.*while.*/) {
 
 		print "while (";
-		$line =~ s/^\s*while\s*\(*//g;
-		$line =~ s/.*\K\)*\:$//g;
+		$line =~ s/^\s*while\s*//;
+		$line =~ s/([^\:]*)\K:$//;
 
 		treat_exp($line, 1, 0, 0);
 		print ") {\n";
@@ -241,24 +223,30 @@ sub treat_if_while_for_ml {
 		$param = $line;
 		$param =~ s/.*in\s//;
 
-		#print "param => $param\n";
-
 		if ($param =~ /range.*/) {
 			$arg = $param;
-			$arg =~ s/.*\(//;
-			$arg =~ s/.*\K\).*//;
+			$arg =~ s/[^\(]*\(//;
+			$arg =~ s/[^\)]*\K\):.*//;
 
 			if ($arg =~ /\,/) {
 				$start = $arg;
-				$start =~ s/[0-9]+\K\,.*\n$//;
+				$start =~ s/[^\,]*\K\,.*\n$//;
 			
 				$finish = $arg;
-				$finish =~ s/.*\,\s*//;
+				$finish =~ s/[^\,]*\,\s*//;
+
+				if ($start =~ /^[0-9]+$/) {
+					print "foreach \$$variable ($start..";
+				} else {
+					print "foreach \$$variable (";
+					treat_exp($start, 0, 0, 0);
+					print "..";
+				}
+
 				if ($finish =~ /^[0-9]+$/) {
 					$finish--;
-					print "foreach \$$variable ($start..$finish) {\n";
+					print "$finish) {\n";
 				} else {
-					print "foreach \$$variable ($start..";
 					treat_exp($finish, 0, 0, 0);
 					print "- 1) {\n";
 				}
@@ -292,14 +280,14 @@ sub treat_sys_write {
 
 	if ($string =~ /"/) {
 		$string =~ s/^\s*sys.stdout.write\(\s*"//;
-		$string =~ s/^.*\K\"\).*\n$//;
+		$string =~ s/[^\"]*\K\".*\n*$//;
 
 		print "print \"$string\"";
 	
 	} else {
 
 		$string =~ s/^\s*sys.stdout.write\(\s*//;
-		$string =~ s/^.*\K\).*\n*$//;
+		$string =~ s/[^\)]*\K\).*\n*$//;
 
 		print "print \$$string";
 	}
@@ -310,8 +298,6 @@ sub treat_sys_read {
 
 	$new_line = $line;
 	$new_line =~ s/^.*\Ksys.stdin.readline.*\n*$//;
-
-	#print "new => $new_line\n";
 
 	if ($new_line ne ""){
 		treat_exp($new_line, 0, $count, 0);
@@ -330,9 +316,8 @@ sub treat_int {
 
 	$param = $line;
 	$param =~ s/^.*int\(//;
-	$param =~ s/^.*\K\).*\n*$//;
+	$param =~ s/[^\)]*\K\).*\n*$//;
 
-	#print "param => $param\n";
 	if ($param =~ /sys.stdin.readline/) {
 		treat_sys_read($param, $count);
 	
@@ -399,8 +384,6 @@ sub treat_exp {
 
 	for $word (split(/\s/, $line)) {
 
-		#print "WORD => $word\n";
-
 		if ($word ne "\s" && $word =~ /^[a-zA-Z][a-zA-Z0-9_]*$/ && $word ne ("and" || "or" || "not") && $word ne ("break") && $word ne ("continue")) {
 			
 			print "\$$word ";
@@ -443,8 +426,6 @@ sub treat_exp {
 				$prev = $post;
 				$op = $post;
 			}
-
-			#print "post => $post\n";
 
 			if ($post eq "break") {
 				print "last ";
@@ -493,12 +474,8 @@ while ($line = <>) {
 		$line =~ /^(\s*)/;
 		$count = length($1);
 
-		#print "last => $last_count\n";
-		#print "count => $count\n";
-
 		if ($count < $last_count && $hash{$count} eq "false") {
 
-			#print "count => $count\n";
 			close_braces($count);
 			
 		}
@@ -525,8 +502,6 @@ while ($line = <>) {
 
 		} elsif ($line =~ /^\s*elif.*\:$/ || $line =~ /^\s*if.*\:$/ || $line =~ /^\s*else.*\:$/ || $line =~ /^\s*while.*\:$/ || $line =~ /^\s*for.*\:$/) {
 
-			#print "count => $count\n";
-
 			if (!exists($hash{$count}) || (exists($hash{$count}) && $hash{$count} eq "true")) {
 
 				$hash{$count} = "false";
@@ -549,7 +524,6 @@ while ($line = <>) {
 
 		} elsif ($line =~ /^\s*[a-zA-Z][a-zA-Z0-9_]*\s*=.*$/) {
 	  	
-	  		#print "count => $count\n";
 	  		print_tabs($count, 0);
 
 	  		treat_exp($line, 0);
@@ -577,9 +551,7 @@ while ($line = <>) {
 			print "#$line\n";
 
 		}
-	}
-	#print "last => $last_count\n";
-	#print "count => $count\n";
+	} 
 	$last_count = $count;
 }
 
