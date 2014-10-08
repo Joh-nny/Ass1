@@ -53,7 +53,11 @@ sub close_braces {
 sub treat_print {
 	my ($line, $expr) = @_;
 
-	if ($line =~ /^\s*print\s*"(.*)"\s*$/ && $expr == 0) {
+	if ($line =~ /^\s*print\s*$/) {
+		
+		print "print \"\\n\";\n"
+	
+	} elsif ($line =~ /^\s*print\s*"(.*)"\s*$/ && $expr == 0) {
 	
 		# Python's print print a new-line character by default
 		# so we need to add it explicitly to the Perl print statement
@@ -81,8 +85,18 @@ sub treat_if_while_for_sl {
 	my ($line, $count) = @_;
 
 	$new_line = $line;
+	$original_line = $line;
 
-	if ($line =~ /.*if.*/) {
+	if ($line =~ /.*elif.*/) {
+
+		print "elsif (";
+		$line =~ s/^\s*elif\s*\(*//g;
+		$line =~ s/.*\K\)*\:.*//g;
+
+		treat_exp($line, 0, 0, 0);
+		print ") {\n";
+
+	} elsif ($line =~ /.*if.*/) {
 
 		print "if (";
 		$line =~ s/^\s*if\s*\(*//g;
@@ -90,6 +104,10 @@ sub treat_if_while_for_sl {
 
 		treat_exp($line, 0, 0, 0);
 		print ") {\n";
+
+	} elsif ($line =~ /.*else.*/) {
+
+		print "else {\n";
 
 	} elsif ($line =~ /.*while.*/) {
 
@@ -184,14 +202,31 @@ sub treat_if_while_for_ml {
 
 	#print ("HERE\n");
 
-	if ($line =~ /.*if.*/) {
+	if ($line =~ /.*elif.*/) {
 
-		print "if (";
-		$line =~ s/^\s*if\s*\(*//g;
-		$line =~ s/.*\K\)*\:$//g;
+		print "elsif (";
+		$line =~ s/^\s*elif\s*\(*//;
+		$line =~ s/.*\K\)+\:$//;
+		$line =~ s/.*\K\:$//;
 
 		treat_exp($line, 1, 0, 0);
 		print ") {\n";
+
+	} elsif ($line =~ /.*if.*/) {
+
+		print "if (";
+		$line =~ s/^\s*if\s*\(*//g;
+		$line =~ s/.*\K\)+\:$//g;
+		$line =~ s/.*\K\:$//g;
+
+		#print "=> $line\n";
+
+		treat_exp($line, 1, 0, 0);
+		print ") {\n";
+
+	} elsif ($line =~ /.*else.*/) {
+
+		print "else {\n";
 
 	} elsif ($line =~ /.*while.*/) {
 
@@ -256,22 +291,22 @@ sub treat_if_while_for_ml {
 }
 
 sub treat_sys_write {
-	my ($line) = @_;
+	my ($line, $count) = @_;
 
 	$string = $line;
-	$string =~ s/^\s*sys.stdout.write\("//;
-	$string =~ s/^.*\K\"\).*\n$//;
 
-	print "print \"$string\";\n";
+	if ($string =~ /"/) {
+		$string =~ s/^\s*sys.stdout.write\(\s*"//;
+		$string =~ s/^.*\K\"\).*\n$//;
 
-	$new_line = $line;
-	$new_line =~ s/.*\)//;
-	$new_line =~ s/;\s*//;
-	#print "new => $new_line\n";
-	if ($new_line ne "") {
-		print "\t";
-		treat_exp($new_line, 0);
-		print ";\n"
+		print "print \"$string\"";
+	
+	} else {
+
+		$string =~ s/^\s*sys.stdout.write\(\s*//;
+		$string =~ s/^.*\K\).*\n*$//;
+
+		print "print \$$string";
 	}
 }
 
@@ -279,6 +314,31 @@ sub treat_exp {
 	my ($line, $option, $count, $tabs) = @_;
 
 	print_tabs($count, $tabs);
+
+	if ($line =~ /sys.stdout.write/) {
+		treat_sys_write($line, $count);
+
+		$new_line = $line;
+		$new_line =~ s/.*\)//;
+		$new_line =~ s/\;*\s*\n*//;
+		#print "new => $new_line\n";
+		if ($new_line ne "") {
+			print ";\n";
+			treat_exp($new_line, 0, $count, 1);
+		}
+		return;
+	
+	} elsif ($line =~ /^\s*[a-zA-Z][a-zA-Z0-9_]*\s*=\s*".*"\s*$/) {
+
+		$variable = $line;
+		$variable =~ s/^\s*//;
+		$variable =~ s/[a-zA-Z][a-zA-Z0-9_]*\K.*\n*$//;
+
+		@string = split (/"/, $line);
+
+		print "\$$variable = \"@string[1]\"";
+		return;
+	}
 
 	for $word (split(/\s/, $line)) {
 
@@ -391,6 +451,10 @@ while ($line = <>) {
 		# Blank & comment lines can be passed unchanged
 		print $line;
 
+	} elsif ($line =~ /^\s*import.*/) {
+
+		print "\n";
+
 	} else {
 
 		$line =~ /^(\s*)/;
@@ -399,7 +463,7 @@ while ($line = <>) {
 		#print "last => $last_count\n";
 		#print "count => $count\n";
 
-		if ($count < $last_count) {
+		if ($count < $last_count && $hash{$count} eq "false") {
 
 			#print "count => $count\n";
 			close_braces($count);
@@ -412,7 +476,7 @@ while ($line = <>) {
 
 			treat_print($line, 0);
 
-		} elsif ($line =~ /^\s*if.*\:.+/ || $line =~ /^\s*while.*\:.+/ || $line =~ /^\s*for.*\:.+/) {
+		} elsif ($line =~ /^\s*elif.*\:.+/ || $line =~ /^\s*if.*\:.+/ || $line =~ /^\s*else.*\:.+/ || $line =~ /^\s*while.*\:.+/ || $line =~ /^\s*for.*\:.+/) {
 
 			if (!exists($hash{$count}) || (exists($hash{$count}) && $hash{$count} eq "true")) {
 
@@ -424,7 +488,7 @@ while ($line = <>) {
 
 			treat_if_while_for_sl($line, $count);
 
-		} elsif ($line =~ /^\s*if.*\:$/ || $line =~ /^\s*while.*\:$/ || $line =~ /^\s*for.*\:$/) {
+		} elsif ($line =~ /^\s*elif.*\:$/ || $line =~ /^\s*if.*\:$/ || $line =~ /^\s*else.*\:$/ || $line =~ /^\s*while.*\:$/ || $line =~ /^\s*for.*\:$/) {
 
 			#print "count => $count\n";
 
@@ -456,10 +520,11 @@ while ($line = <>) {
 			print_tabs($count, 0);
 			print "next;\n";
 
-		} elsif ($line =~ /^\s*sys.stdout.write\(".*"\)\s*$/) {
+		} elsif ($line =~ /^\s*sys.stdout.write\(.*\)\s*$/) {
 
 			print_tabs($count, 0);
 			treat_sys_write($line);
+			print ";\n";
 
 		} else {
 	

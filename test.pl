@@ -1,17 +1,16 @@
 #!/usr/bin/perl -w
 
-$count = 0 ;
-foreach $i (2..99) {
-	$k = $i / 2 ;
-	$j = 2 ;
-	foreach $j (2..$k + 1 - 1) {
-		$k = $i % $j ;
-		if ($k == 0 ) {
-			$count = $count - 1 ;
-			last;
-		}
-		$k = $i / 2 ;
-	}
-	$count = $count + 1 ;
+print "Enter a number: ";
+$a = int(sys.stdin.readline()) ;
+if ($a < 0 ) {
+	print "negative\n";
 }
-print $count , "\n";
+elsif ($a == 0 ) {
+	print "teste";
+}
+elsif ($a < 10 ) {
+	print "small\n";
+}
+else {
+	print "large\n";
+}
