@@ -55,16 +55,12 @@ sub treat_print {
 
 	if ($line =~ /^\s*print\s*$/) {
 		
-		print "print \"\\n\";\n"
+		print "print \"\\n\""
 	
-	} elsif ($line =~ /^\s*print\s*"(.*)"\s*$/ && $expr == 0) {
+	} elsif ($line =~ /^\s*print\s*"(.*)"\s*$/) {
 	
 		# Python's print print a new-line character by default
 		# so we need to add it explicitly to the Perl print statement
-		print "print \"$1\\n\";\n";
-
-	} elsif ($line =~ /^\s*print\s*"(.*)"\s*$/ && $expr == 1) {
-
 		print "print \"$1\\n\"";
 
 	} else {
@@ -73,11 +69,7 @@ sub treat_print {
 		$line =~ s/^\s*print\s*//g;
 		treat_exp($line, 0);
 
-		if ($expr == 0) {
-			print ", \"\\n\";\n";
-		} else {
-			print ", \"\\n\"";
-		}
+		print ", \"\\n\"";
 	}
 }
 
@@ -90,8 +82,11 @@ sub treat_if_while_for_sl {
 	if ($line =~ /.*elif.*/) {
 
 		print "elsif (";
-		$line =~ s/^\s*elif\s*\(*//g;
-		$line =~ s/.*\K\)*\:.*//g;
+		$line =~ s/^\s*elif\s*//;
+		#print "line => $line\n";
+		$line =~ s/([^\:]*)\K:.*//;
+
+		#print "line => $line\n";
 
 		treat_exp($line, 0, 0, 0);
 		print ") {\n";
@@ -99,8 +94,8 @@ sub treat_if_while_for_sl {
 	} elsif ($line =~ /.*if.*/) {
 
 		print "if (";
-		$line =~ s/^\s*if\s*\(*//g;
-		$line =~ s/.*\K\)*\:.*//g;
+		$line =~ s/^\s*if\s*//;
+		$line =~ s/([^\:]*)\K:.*//;
 
 		treat_exp($line, 0, 0, 0);
 		print ") {\n";
@@ -112,8 +107,8 @@ sub treat_if_while_for_sl {
 	} elsif ($line =~ /.*while.*/) {
 
 		print "while (";
-		$line =~ s/^\s*while\s*\(*//g;
-		$line =~ s/.*\K\)*\:.*//g;
+		$line =~ s/^\s*while\s*//;
+		$line =~ s/([^\:]*)\K:.*//;
 
 		treat_exp($line, 0, 0, 0);
 		print ") {\n";
@@ -170,7 +165,7 @@ sub treat_if_while_for_sl {
 		}
 	}
 
-	$new_line =~ s/.*\:\s*//;
+	$new_line =~ s/([^\:]*)\:\s*//;
 
 	#print "new => $new_line\n";
 
@@ -316,9 +311,44 @@ sub treat_sys_read {
 	$new_line = $line;
 	$new_line =~ s/^.*\Ksys.stdin.readline.*\n*$//;
 
-	treat_exp($new_line, 0, $count, 0);
+	#print "new => $new_line\n";
+
+	if ($new_line ne ""){
+		treat_exp($new_line, 0, $count, 0);
+	}
 
 	print "<STDIN>";
+}
+
+sub treat_int {
+	my ($line, $count) = @_;
+
+	$new_line = $line;
+	$new_line =~ s/^.*\Kint.*\n*$//;
+
+	treat_exp($new_line, 0, $count, 0);
+
+	$param = $line;
+	$param =~ s/^.*int\(//;
+	$param =~ s/^.*\K\).*\n*$//;
+
+	#print "param => $param\n";
+	if ($param =~ /sys.stdin.readline/) {
+		treat_sys_read($param, $count);
+	
+	} elsif ($param eq "") {
+		print "0";
+	
+	} else {
+		
+		if ($param =~ /^".*"$/) {
+			@param = split(/"/, $param);
+			$integer = int(@param[1]);
+		} else {
+			$integer = int($param);
+		}
+		print "$integer";
+	} 
 }
 
 sub treat_exp {
@@ -326,17 +356,22 @@ sub treat_exp {
 
 	print_tabs($count, $tabs);
 
-	if ($line =~ /sys.stdout.write/) {
+	if ($line =~ /^\s*print.*/) {
+		
+		treat_print($line);
+		return;
+
+	} elsif ($line =~ /sys.stdout.write/) {
 		treat_sys_write($line, $count);
 
-		$new_line = $line;
-		$new_line =~ s/.*\)//;
-		$new_line =~ s/\;*\s*\n*//;
+		#$new_line = $line;
+		#$new_line =~ s/.*\)//;
+		#$new_line =~ s/\;*\s*\n*//;
 		#print "new => $new_line\n";
-		if ($new_line ne "") {
-			print ";\n";
-			treat_exp($new_line, 0, $count, 1);
-		}
+		#if ($new_line ne "") {
+	#		print ";\n";
+		#	treat_exp($new_line, 0, $count, 1);
+		#}
 		return;
 	
 	} elsif ($line =~ /^\s*[a-zA-Z][a-zA-Z0-9_]*\s*=\s*".*"\s*$/) {
@@ -348,6 +383,11 @@ sub treat_exp {
 		@string = split (/"/, $line);
 
 		print "\$$variable = \"@string[1]\"";
+		return;
+
+	} elsif ($line =~ /int(.*)/) {
+
+		treat_int($line, $count);
 		return;
 	
 	} elsif ($line =~ /sys.stdin.readline/) {
@@ -361,31 +401,7 @@ sub treat_exp {
 
 		#print "WORD => $word\n";
 
-		if ($word ne "\s" && $word =~ /^\s*print.*/) {
-
-			$print = $line;
-			$new_line = $line;
-
-			$print =~ s/.*print/print/;
-			$print =~ s/print.*\K;.*//g;
-			$new_line =~ s/.*;\s*//g;
-			#$new_line =~ s/print.*\K.*\n//g;
-
-			#print "print => $print\n";
-			#print "new => $new_line\n";
-			#print "line => $line\n";
-
-			treat_print($print, 1);
-			if ($new_line ne $line) {
-				print ";\n\t";
-				treat_exp($new_line, $option, $count, $tabs);
-			} 
-			return;
-
-		} elsif ($word ne "\s" && $word =~ /.*sys.stdout.write.*/) {
-			return;
-
-		} elsif ($word ne "\s" && $word =~ /^[a-zA-Z][a-zA-Z0-9_]*$/ && $word ne ("and" || "or" || "not") && $word ne ("break") && $word ne ("continue")) {
+		if ($word ne "\s" && $word =~ /^[a-zA-Z][a-zA-Z0-9_]*$/ && $word ne ("and" || "or" || "not") && $word ne ("break") && $word ne ("continue")) {
 			
 			print "\$$word ";
 		
@@ -491,7 +507,9 @@ while ($line = <>) {
 
 			print_tabs($count, 0);
 
-			treat_print($line, 0);
+			treat_print($line);
+
+			print ";\n";
 
 		} elsif ($line =~ /^\s*elif.*\:.+/ || $line =~ /^\s*if.*\:.+/ || $line =~ /^\s*else.*\:.+/ || $line =~ /^\s*while.*\:.+/ || $line =~ /^\s*for.*\:.+/) {
 
@@ -518,6 +536,11 @@ while ($line = <>) {
 			print_tabs($count, 0);
 
 			treat_if_while_for_ml($line);
+
+		} elsif ($line =~ /int(.*)/) {
+
+			treat_int($line, $count);
+			print ";\n";
 
 		} elsif ($line =~ /sys.stdin.readline/) {
 

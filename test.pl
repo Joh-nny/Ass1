@@ -1,19 +1,16 @@
 #!/usr/bin/perl -w
 
-
-$number = 0 ;
-$blah = "> ";
-while ($number >= 0 ) {
-	print $blah;
-	$number = <STDIN>;
-	if ($number >= 0 ) {
-		if ($number % 2 == 0 ) {
-			print "Even\n";
-		}
-		else {
-			print "Odd\n";
-		}
-	}
+print "Enter a number: ";
+$a = 15;
+if ($a < 0 ) {
+	$b = "thger";
 }
-print "Bye\n";
-
+elsif ($a == 0 ) {
+	print "Enter a number2: ";
+}
+elsif ($a < 10 ) {
+	print "small\n";
+}
+else {
+	$b = 50 ;
+}
