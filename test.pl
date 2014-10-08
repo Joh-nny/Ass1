@@ -1,16 +1,19 @@
 #!/usr/bin/perl -w
 
-print "Enter a number: ";
-$a = int(sys.stdin.readline()) ;
-if ($a < 0 ) {
-	print "negative\n";
+
+$number = 0 ;
+$blah = "> ";
+while ($number >= 0 ) {
+	print $blah;
+	$number = <STDIN>;
+	if ($number >= 0 ) {
+		if ($number % 2 == 0 ) {
+			print "Even\n";
+		}
+		else {
+			print "Odd\n";
+		}
+	}
 }
-elsif ($a == 0 ) {
-	print "teste";
-}
-elsif ($a < 10 ) {
-	print "small\n";
-}
-else {
-	print "large\n";
-}
+print "Bye\n";
+

@@ -1,5 +1,6 @@
 #!/usr/bin/python
+import sys
 
 answer = 41
 blah = 2
-if (answer > 0): print "blah"; else: print "bleh"
+if (answer > int(sys.stdin.readline())): print "blah"

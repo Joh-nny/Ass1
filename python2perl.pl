@@ -310,6 +310,17 @@ sub treat_sys_write {
 	}
 }
 
+sub treat_sys_read {
+	my ($line, $count) = @_;
+
+	$new_line = $line;
+	$new_line =~ s/^.*\Ksys.stdin.readline.*\n*$//;
+
+	treat_exp($new_line, 0, $count, 0);
+
+	print "<STDIN>";
+}
+
 sub treat_exp {
 	my ($line, $option, $count, $tabs) = @_;
 
@@ -338,6 +349,12 @@ sub treat_exp {
 
 		print "\$$variable = \"@string[1]\"";
 		return;
+	
+	} elsif ($line =~ /sys.stdin.readline/) {
+
+		treat_sys_read($line, $count);
+		return;
+
 	}
 
 	for $word (split(/\s/, $line)) {
@@ -501,6 +518,11 @@ while ($line = <>) {
 			print_tabs($count, 0);
 
 			treat_if_while_for_ml($line);
+
+		} elsif ($line =~ /sys.stdin.readline/) {
+
+			treat_sys_read($line, $count);
+			print ";\n";
 
 		} elsif ($line =~ /^\s*[a-zA-Z][a-zA-Z0-9_]*\s*=.*$/) {
 	  	
