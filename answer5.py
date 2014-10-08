@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 answer = 41
-blah = 2
-if answer > 0: blah = blah + 2; answer = answer + blah
-if answer == 43 and blah == 2: answer = answer - 1
+if (answer > 0): answer = (answer + 2) * 3 + (8 /7); blah = 45 * (1 + 2)
+if answer == 43: answer = answer - 1
 print answer

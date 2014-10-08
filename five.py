@@ -1,5 +1,4 @@
 #!/usr/bin/python
-import sys
 
-for i in range(int(sys.stdin.readline()), 8):
+for i in range(0, 5):
     print i

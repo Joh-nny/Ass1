@@ -1,9 +1,12 @@
 #!/usr/bin/python
 import sys
 sys.stdout.write("Enter a number: ")
-a = int(15)
-if a < 0: b="thger"
-elif a == 0: sys.stdout.write("Enter a number2: ")
+a = int(sys.stdin.readline())
+if a < 0:
+    print "negative"
+elif a == 0:
+    print "zero"
 elif a < 10:
     print "small"
-else: b = 50
+else:
+    print "large"
